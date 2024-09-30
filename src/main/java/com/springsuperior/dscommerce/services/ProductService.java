@@ -5,6 +5,8 @@ import com.springsuperior.dscommerce.dto.ProductDTO;
 import com.springsuperior.dscommerce.entities.Product;
 import com.springsuperior.dscommerce.repositories.ProductRepository;
 
+import com.springsuperior.dscommerce.services.exceptions.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +24,8 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public ProductDTO findById(Long id) {
-        Optional<Product> result = repository.findById(id);
+        Optional<Product> result = Optional.ofNullable(repository.findById(id).orElseThrow(
+                () -> new ResourceNotFoundException("Recurso não encontrado")));
         Product product = result.get();
         ProductDTO dto = new ProductDTO(product);
         return dto;
@@ -44,15 +47,31 @@ public class ProductService {
 
     @Transactional
     public ProductDTO update (Long id, ProductDTO dto) {
-        Product entity = repository.getReferenceById(id);
-        copyDtoToEntity(dto, entity);
-        entity = repository.save(entity);
-        return new ProductDTO(entity);
+
+try {
+    Product entity = repository.getReferenceById(id);
+    copyDtoToEntity(dto, entity);
+    entity = repository.save(entity);
+    return new ProductDTO(entity);
+}
+
+catch (EntityNotFoundException e) {
+    throw new ResourceNotFoundException("Recurso não encontrado");
+}
+
+
     }
 
     @Transactional
     public void delete(Long id) {
-        repository.deleteById(id);
+
+        if (!repository.existsById(id)){
+            throw new ResourceNotFoundException("Recurso não encontrado");
+        }
+
+            repository.deleteById(id);
+
+
     }
 
     private void copyDtoToEntity(ProductDTO dto, Product entity) {
